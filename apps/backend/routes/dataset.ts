@@ -1,5 +1,6 @@
 import express from "express";
 import z from "zod";
+import { prisma } from "../../../packages/db/db";
 
 export const datasetRouter = express.Router();
 
@@ -9,6 +10,15 @@ function extractVariablesFromPrompt(prompt: string) {
   const matches = [...prompt.matchAll(regex)];
 
   return matches.map((match) => match[1]);
+}
+
+function resolvePrompt(
+  basePrompt: string,
+  labels: Record<string, string>,
+): string {
+  return basePrompt.replace(/\{([^}]+)\}/g, (_, key) => {
+    return labels[key] || `{${key}}`;
+  });
 }
 
 function generatePermutations(
@@ -49,7 +59,7 @@ const generateInputSchema = z.object({
       .array(z.string().min(1, "Variable values cannot be empty strings"))
       .min(1, "Each variable array must contain at least one value"),
   ),
-  project: z.string(),
+  project_id: z.string(),
 });
 
 datasetRouter.post("/generate", async (req, res) => {
@@ -61,7 +71,7 @@ datasetRouter.post("/generate", async (req, res) => {
     });
     return;
   }
-  const { base_prompt, variables, project } = data;
+  const { base_prompt, variables, project_id } = data;
 
   console.log(base_prompt);
   console.log(variables);
@@ -85,8 +95,20 @@ datasetRouter.post("/generate", async (req, res) => {
   }
 
   const allLabels = generatePermutations(variables);
-  console.log(allLabels);
-  res.status(200).json({
-    allLabels,
+  const totalPermutations = allLabels.length;
+
+  if (totalPermutations > 500) {
+    res.status(400).json({
+      message: "Too many permutations. Max allowed is 500",
+    });
+    return;
+  }
+
+  await prisma.batch.create({
+    data: {
+      variables: variables,
+      base_prompt: base_prompt,
+      project_id: project_id,
+    },
   });
 });

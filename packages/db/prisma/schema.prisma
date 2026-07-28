@@ -18,6 +18,7 @@ model User{
   email           String        
   credits         Int
   password        String
+  projects        Project[]
 }
 
 model Project{
@@ -25,6 +26,8 @@ model Project{
   user_id       String
   name          String
   description   String
+  user          User          @relation(fields: [user_id], references: [id])
+  batches       Batch[]
 }
 
 model Batch{
@@ -33,14 +36,18 @@ model Batch{
   status        CompletionStatus          @default(PENDING)
   base_prompt   String
   variables     Json
+  project       Project       @relation(fields: [project_id], references: [id])
+
+  items         Items[]
 }
 
-model items {
+model Items {
   id            String       @id          @default(uuid())
   batch_id      String
   url           String?
   labels        Json
   workflow_id   String?
+  batch         Batch       @relation(fields: [batch_id], references: [id])
 }
 
 
