@@ -104,6 +104,8 @@ datasetRouter.post("/generate", async (req, res) => {
     return;
   }
 
+
+  //TODO: creating the project first before creating batch
   await prisma.batch.create({
     data: {
       variables: variables,
