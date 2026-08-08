@@ -104,8 +104,7 @@ datasetRouter.post("/generate", async (req, res) => {
     return;
   }
  
-  //todo
-  await prisma.batch.create({
+  const dbBatch = await prisma.batch.create({
     data: {
       variables: variables,
       base_prompt: base_prompt,
@@ -113,5 +112,23 @@ datasetRouter.post("/generate", async (req, res) => {
     },
   });
 
-  //todo to add the temporal AI logic
+const itemsToCreate = allLabels.map((labelObj) => ({
+    batch_id: dbBatch.id,
+    prompt: resolvePrompt(base_prompt, labelObj),
+    labels: labelObj,
+    status: "PENDING",
+  }));
+
+  await prisma.items.createMany({
+    data: itemsToCreate
+  })
+
+  //trigger the temporal workflow
+  
+
+  //count in the redis client
+
+  return res.status(200).json({
+    messgae: success
+  })
 });

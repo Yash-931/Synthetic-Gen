@@ -44,9 +44,9 @@ model Batch{
 model Items {
   id            String       @id          @default(uuid())
   batch_id      String
-  url           String?
+  prompt        String?
   labels        Json
-  workflow_id   String?
+  status        CompletionStatus      @default(PENDING)
   batch         Batch       @relation(fields: [batch_id], references: [id])
 }
 
