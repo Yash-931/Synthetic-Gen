@@ -10,6 +10,9 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@temporalio/client": "^1.22.0",
+    "@temporalio/worker": "^1.22.0",
+    "@temporalio/workflow": "^1.22.0",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -19,6 +22,7 @@
     "db": "workspace:*",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "temporalio": "^1.9.3",
     "zod": "^4.4.3"
   }
 }

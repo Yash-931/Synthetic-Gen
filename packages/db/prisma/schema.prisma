@@ -46,6 +46,7 @@ model Items {
   batch_id      String
   prompt        String?
   labels        Json
+  gcp_url       String?
   status        CompletionStatus      @default(PENDING)
   batch         Batch       @relation(fields: [batch_id], references: [id])
 }
