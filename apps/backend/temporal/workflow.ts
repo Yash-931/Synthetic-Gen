@@ -30,6 +30,7 @@ export async function DatasetMasterWorkflow(batchId: string) {
     }),
   );
 
+  //this will keep the master workflow in RUNNING state
   await Promise.all(childPromises);
   return "Master workflow started successfully";
 }
