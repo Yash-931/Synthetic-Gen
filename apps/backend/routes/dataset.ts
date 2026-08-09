@@ -103,7 +103,7 @@ datasetRouter.post("/generate", async (req, res) => {
     });
     return;
   }
- 
+
   const dbBatch = await prisma.batch.create({
     data: {
       variables: variables,
@@ -112,7 +112,7 @@ datasetRouter.post("/generate", async (req, res) => {
     },
   });
 
-const itemsToCreate = allLabels.map((labelObj) => ({
+  const itemsToCreate = allLabels.map((labelObj) => ({
     batch_id: dbBatch.id,
     prompt: resolvePrompt(base_prompt, labelObj),
     labels: labelObj,
@@ -120,15 +120,14 @@ const itemsToCreate = allLabels.map((labelObj) => ({
   }));
 
   await prisma.items.createMany({
-    data: itemsToCreate
-  })
+    data: itemsToCreate,
+  });
 
   //trigger the temporal workflow
-  
 
   //count in the redis client
 
   return res.status(200).json({
-    messgae: success
-  })
+    messgae: success,
+  });
 });

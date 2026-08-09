@@ -1,4 +1,5 @@
 import {
+  ApplicationFailure,
   ChildWorkflowCancellationType,
   executeChild,
   ParentClosePolicy,
@@ -6,31 +7,29 @@ import {
 import { getBatchItems } from "./activities";
 
 async function DatasetChildWorkflow() {
-    try {
-        //generate image
-
-        //upload to gcs
-
-        //update the redis counter
-    }
+  //generate image
+  //upload to gcs
+  //update the redis counter
 }
 
 export async function DatasetMasterWorkflow(batchId: string) {
-  try {
-    const prompts = await getBatchItems(batchId);
-    let index = 0;
+  const prompts = await getBatchItems(batchId);
 
-    prompts!.map((prompt) =>
-      executeChild(DatasetChildWorkflow, {
-        args: [prompt],
-        cancellationType:
-          ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED,
-        parentClosePolicy: ParentClosePolicy.TERMINATE,
-        workflowId: `batchId-childWorkflow-${index++}`,
-      }),
-    );
-    return "Master workflow started successfully";
-  } catch (e) {
-    console.log("Error starting the master workflow " + e);
+  if (!prompts || prompts.length == 0) {
+    throw new ApplicationFailure("No items found for " + batchId);
   }
+  let index = 0;
+
+  const childPromises = prompts!.map((prompt) =>
+    executeChild(DatasetChildWorkflow, {
+      args: [prompt],
+      cancellationType:
+        ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED,
+      parentClosePolicy: ParentClosePolicy.TERMINATE,
+      workflowId: `${batchId}-childWorkflow-${index++}`,
+    }),
+  );
+
+  await Promise.all(childPromises);
+  return "Master workflow started successfully";
 }
