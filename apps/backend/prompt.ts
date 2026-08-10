@@ -1,0 +1,1 @@
+export const IMAGE_GENERATION_SYSTEM_PROMPT = "Given a description generate a professional photograph from it. Studio lighting, with soft key light and subtle fill, neutral background, crisp details and sharp focus on subject, 50mm lens prespective, high dynamic range and natural textures. This will be used for training of machine learning models, so generate accordingly"
