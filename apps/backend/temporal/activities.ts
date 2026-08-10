@@ -51,6 +51,22 @@ async function uploadImage(imageBuffer: Buffer, destinationName: string) {
   });
 
   console.log("Image uploaded to bucket successfully");
+  const url = file.publicUrl()
+  return url
+}
+
+
+//TODO: UPDATING THE STATUS IN THE DB ACCORDINGLY
+async function generateAndUploadImage(prompt: string, batchId: string) {
+    try {
+        const imageBuffer = await generateImage(prompt);
+        const destinationPath = `batches/images/${batchId}-${Date.now()}`
+        const url = await uploadImage(imageBuffer.buffer, destinationPath)
+
+        return url;
+    } catch(error){
+        console.log("Error in generation or the uploading of the image: " + error)
+    }
 }
 
 async function updateRedisCounter(batchId: string) {
