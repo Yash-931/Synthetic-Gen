@@ -1,0 +1,13 @@
+{
+  "name": "redisclient",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "ioredis": "^6.0.0"
+  }
+}

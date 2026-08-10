@@ -1,6 +1,8 @@
 import express from "express";
 import z from "zod";
 import { prisma } from "../../../packages/db/db";
+import {redisClient} from "../../../packages/redisClient/client"
+import { DatasetMasterWorkflow } from "../temporal/workflow";
 
 export const datasetRouter = express.Router();
 
@@ -123,9 +125,11 @@ datasetRouter.post("/generate", async (req, res) => {
     data: itemsToCreate,
   });
 
-  //trigger the temporal workflow
-
   //count in the redis client
+  redisClient.set(`batch:${dbBatch.id}:progress`, 0);
+
+  //trigger the temporal workflow
+  await DatasetMasterWorkflow(dbBatch.id)
 
   return res.status(200).json({
     messgae: success,
