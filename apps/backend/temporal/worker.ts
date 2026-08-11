@@ -10,7 +10,7 @@ async function run() {
     const worker = await Worker.create({
       connection,
       namespace: process.env.TEMPORAL_NAMESPACE,
-      taskQueue: "synthetic-gen-temporal-queue",
+      taskQueue: process.env.TEMPORAL_TASK_QUEUE!,
       workflowsPath: require.resolve("./workflows"),
       activities,
     });

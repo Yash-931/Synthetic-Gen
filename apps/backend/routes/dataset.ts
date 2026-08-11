@@ -3,6 +3,7 @@ import z from "zod";
 import { prisma } from "../../../packages/db/db";
 import {redisClient} from "../../../packages/redisClient/client"
 import { DatasetMasterWorkflow } from "../temporal/workflow";
+import { get_temporal_client } from "../temporal/client";
 
 export const datasetRouter = express.Router();
 
@@ -129,9 +130,16 @@ datasetRouter.post("/generate", async (req, res) => {
   redisClient.set(`batch:${dbBatch.id}:progress`, 0);
 
   //trigger the temporal workflow
-  await DatasetMasterWorkflow(dbBatch.id)
+  const temporal_client = await get_temporal_client()
+
+  await temporal_client.workflow.start(DatasetMasterWorkflow, {
+    args: [dbBatch.id],
+    workflowId: `${dbBatch.id}-MasterWorkflow`,
+    taskQueue: process.env.TEMPORAL_TASK_QUEUE!
+  })
 
   return res.status(200).json({
     messgae: success,
+    batchId: dbBatch.id
   });
 });
