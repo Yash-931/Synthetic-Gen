@@ -22,10 +22,10 @@
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "db": "workspace:*",
-    "redisclient": "workspace:*",
     "express": "^5.2.1",
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
+    "redisclient": "workspace:*",
     "temporalio": "^1.9.3",
     "zod": "^4.4.3"
   }
