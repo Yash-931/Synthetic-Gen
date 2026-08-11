@@ -66,10 +66,10 @@ async function uploadImage(imageBuffer: Buffer, destinationName: string) {
   return url;
 }
 
-export async function generateAndUploadImage(prompt: string, itemId: string) {
+export async function generateAndUploadImage(prompt: string, itemId: string, batchId: string) {
   try {
     const imageBuffer = await generateImage(prompt);
-    const destinationPath = `batches/images/${itemId}-${Date.now()}`;
+    const destinationPath = `batches/${batchId}/images/${itemId}-${Date.now()}`;
     const url = await uploadImage(imageBuffer.buffer, destinationPath);
 
     await prisma.items.update({

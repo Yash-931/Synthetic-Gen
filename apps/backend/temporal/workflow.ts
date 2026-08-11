@@ -24,7 +24,7 @@ export async function DatasetChildWorkflow(
   itemId: string,
 ) {
   //generate image, upload to gcs and return a public url
-  const url = await generateAndUploadImage(prompt, itemId);
+  const url = await generateAndUploadImage(prompt, itemId, batchId);
   //update the redis counter
   await updateRedisCounter(batchId);
 }
