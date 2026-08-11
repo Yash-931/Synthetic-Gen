@@ -3,30 +3,47 @@ import {
   ChildWorkflowCancellationType,
   executeChild,
   ParentClosePolicy,
+  proxyActivities,
 } from "@temporalio/workflow";
-import { getBatchItems } from "./activities";
+import * as activities from "./activities";
 
-async function DatasetChildWorkflow() {
-  //generate image
-  //upload to gcs
+const { generateAndUploadImage, getBatchItems, updateRedisCounter } =
+  proxyActivities<typeof activities>({
+    startToCloseTimeout: "5 minutes",
+    retry: {
+      initialInterval: "1 second",
+      maximumInterval: "30 seconds",
+      backoffCoefficient: 2,
+      maximumAttempts: 5,
+    },
+  });
+
+export async function DatasetChildWorkflow(
+  prompt: string,
+  batchId: string,
+  itemId: string,
+) {
+  //generate image, upload to gcs and return a public url
+  const url = await generateAndUploadImage(prompt, itemId);
   //update the redis counter
+  await updateRedisCounter(batchId);
 }
 
 export async function DatasetMasterWorkflow(batchId: string) {
-  const prompts = await getBatchItems(batchId);
+  const items = await getBatchItems(batchId);
 
-  if (!prompts || prompts.length == 0) {
+  if (!items || items.length == 0) {
     throw new ApplicationFailure("No items found for " + batchId);
   }
   let index = 0;
 
-  const childPromises = prompts!.map((prompt) =>
+  const childPromises = items!.map((item, prompt) =>
     executeChild(DatasetChildWorkflow, {
-      args: [prompt],
+      args: [prompt, batchId, item.id],
       cancellationType:
         ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED,
       parentClosePolicy: ParentClosePolicy.TERMINATE,
-      workflowId: `${batchId}-childWorkflow-${index++}`,
+      workflowId: `${item.id}-childWorkflow-${index++}`,
     }),
   );
 

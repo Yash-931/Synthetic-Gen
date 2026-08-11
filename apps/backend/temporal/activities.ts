@@ -56,18 +56,15 @@ async function uploadImage(imageBuffer: Buffer, destinationName: string) {
   return url
 }
 
-
-//TODO: UPDATING THE STATUS IN THE DB ACCORDINGLY
-async function generateAndUploadImage(prompt: string, batchId: string) {
+export async function generateAndUploadImage(prompt: string, itemId: string) {
     try {
         const imageBuffer = await generateImage(prompt);
-        const destinationPath = `batches/images/${batchId}-${Date.now()}`
+        const destinationPath = `batches/images/${itemId}-${Date.now()}`
         const url = await uploadImage(imageBuffer.buffer, destinationPath)
 
-        await prisma.items.updateMany({
+        await prisma.items.update({
             where: {
-                batch_id: batchId,
-                prompt: prompt
+                id: itemId
             },
 
             data: {
@@ -78,10 +75,9 @@ async function generateAndUploadImage(prompt: string, batchId: string) {
         return url;
     } catch(error){
         console.log("Error in generation or the uploading of the image: " + error)
-        await prisma.items.updateMany({
+        await prisma.items.update({
             where: {
-                batch_id: batchId,
-                prompt: prompt
+                id: itemId,
             },
 
             data: {
@@ -91,7 +87,7 @@ async function generateAndUploadImage(prompt: string, batchId: string) {
     }
 }
 
-async function updateRedisCounter(batchId: string) {
+export async function updateRedisCounter(batchId: string) {
     const key = `batch:${batchId}:progress`
 
     try{
@@ -113,6 +109,5 @@ export async function getBatchItems(batchId: string) {
     },
   });
 
-  const prompts = items.map((item) => item.prompt);
-  return prompts;
+  return items
 }
