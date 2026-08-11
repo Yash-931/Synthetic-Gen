@@ -37,9 +37,9 @@ export async function DatasetMasterWorkflow(batchId: string) {
   }
   let index = 0;
 
-  const childPromises = items!.map((item, prompt) =>
+  const childPromises = items!.map((item) =>
     executeChild(DatasetChildWorkflow, {
-      args: [prompt, batchId, item.id],
+      args: [item.prompt, batchId, item.id],
       cancellationType:
         ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED,
       parentClosePolicy: ParentClosePolicy.TERMINATE,

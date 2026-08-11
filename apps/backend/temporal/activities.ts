@@ -6,16 +6,26 @@ import { Storage } from "@google-cloud/storage";
 import { redisClient } from "../../../packages/redisClient/client";
 import { CompletionStatus } from "../../../packages/db/generated/prisma/enums";
 
-const ai = new GoogleGenAI({
-  vertexai: true,
-  project: process.env.GCP_PROJECT,
-  location: "us-central1",
-});
+function getAIClient() {
+  const project = process.env.GCP_PROJECT;
+  if (!project && !process.env.GEMINI_API_KEY) {
+    throw new Error(
+      "GCP_PROJECT or GEMINI_API_KEY is not set in environment variables. Please check your .env file.",
+    );
+  }
+
+  return new GoogleGenAI({
+    vertexai: true,
+    project,
+    location: "us-central1",
+  });
+}
 
 const storage = new Storage();
 const bucketName = process.env.BUCKET_NAME;
 
 async function generateImage(prompt: string) {
+  const ai = getAIClient();
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-image",
     contents: prompt,
@@ -52,54 +62,54 @@ async function uploadImage(imageBuffer: Buffer, destinationName: string) {
   });
 
   console.log("Image uploaded to bucket successfully");
-  const url = file.publicUrl()
-  return url
+  const url = file.publicUrl();
+  return url;
 }
 
 export async function generateAndUploadImage(prompt: string, itemId: string) {
-    try {
-        const imageBuffer = await generateImage(prompt);
-        const destinationPath = `batches/images/${itemId}-${Date.now()}`
-        const url = await uploadImage(imageBuffer.buffer, destinationPath)
+  try {
+    const imageBuffer = await generateImage(prompt);
+    const destinationPath = `batches/images/${itemId}-${Date.now()}`;
+    const url = await uploadImage(imageBuffer.buffer, destinationPath);
 
-        await prisma.items.update({
-            where: {
-                id: itemId
-            },
+    await prisma.items.update({
+      where: {
+        id: itemId,
+      },
 
-            data: {
-                gcp_url: url,
-                status: CompletionStatus.COMPLETED
-            }
-        })
-        return url;
-    } catch(error){
-        console.log("Error in generation or the uploading of the image: " + error)
-        await prisma.items.update({
-            where: {
-                id: itemId,
-            },
+      data: {
+        gcp_url: url,
+        status: CompletionStatus.COMPLETED,
+      },
+    });
+    return url;
+  } catch (error) {
+    console.log("Error in generation or the uploading of the image: " + error);
+    await prisma.items.update({
+      where: {
+        id: itemId,
+      },
 
-            data: {
-                status: CompletionStatus.FAILURE
-            }
-        })
-    }
+      data: {
+        status: CompletionStatus.FAILURE,
+      },
+    });
+  }
 }
 
 export async function updateRedisCounter(batchId: string) {
-    const key = `batch:${batchId}:progress`
+  const key = `batch:${batchId}:progress`;
 
-    try{
-        const newCount = await redisClient.incr(key);
+  try {
+    const newCount = await redisClient.incr(key);
 
-        if(newCount === 1) {
-            await redisClient.expire(key, 86400)
-        }
-    } catch(error){
-        console.log("Redis counter increment failed: " + error)
-        return -1
+    if (newCount === 1) {
+      await redisClient.expire(key, 86400);
     }
+  } catch (error) {
+    console.log("Redis counter increment failed: " + error);
+    return -1;
+  }
 }
 
 export async function getBatchItems(batchId: string) {
@@ -109,5 +119,5 @@ export async function getBatchItems(batchId: string) {
     },
   });
 
-  return items
+  return items;
 }

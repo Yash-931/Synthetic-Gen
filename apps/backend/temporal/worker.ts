@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { NativeConnection, Worker } from "@temporalio/worker";
 import * as activities from "./activities";
 
@@ -11,7 +12,7 @@ async function run() {
       connection,
       namespace: process.env.TEMPORAL_NAMESPACE,
       taskQueue: process.env.TEMPORAL_TASK_QUEUE!,
-      workflowsPath: require.resolve("./workflows"),
+      workflowsPath: require.resolve("./workflow"),
       activities,
     });
 
