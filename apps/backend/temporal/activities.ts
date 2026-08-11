@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { IMAGE_GENERATION_SYSTEM_PROMPT } from "../prompt";
 import { Storage } from "@google-cloud/storage";
 import { redisClient } from "../../../packages/redisClient/client";
+import { CompletionStatus } from "../../../packages/db/generated/prisma/enums";
 
 const ai = new GoogleGenAI({
   vertexai: true,
@@ -63,9 +64,30 @@ async function generateAndUploadImage(prompt: string, batchId: string) {
         const destinationPath = `batches/images/${batchId}-${Date.now()}`
         const url = await uploadImage(imageBuffer.buffer, destinationPath)
 
+        await prisma.items.updateMany({
+            where: {
+                batch_id: batchId,
+                prompt: prompt
+            },
+
+            data: {
+                gcp_url: url,
+                status: CompletionStatus.COMPLETED
+            }
+        })
         return url;
     } catch(error){
         console.log("Error in generation or the uploading of the image: " + error)
+        await prisma.items.updateMany({
+            where: {
+                batch_id: batchId,
+                prompt: prompt
+            },
+
+            data: {
+                status: CompletionStatus.FAILURE
+            }
+        })
     }
 }
 
