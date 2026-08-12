@@ -4,6 +4,7 @@ import { prisma } from "../../../packages/db/db";
 import {redisClient} from "../../../packages/redisClient/client"
 import { DatasetMasterWorkflow } from "../temporal/workflow";
 import { get_temporal_client } from "../temporal/client";
+import { authMiddleware, type AuthenticationRequest } from "../middleware/auth";
 
 export const datasetRouter = express.Router();
 
@@ -143,3 +144,37 @@ datasetRouter.post("/generate", async (req, res) => {
     batchId: dbBatch.id
   });
 });
+
+datasetRouter.get(
+  "/:batchId",
+  authMiddleware,
+  async (req: AuthenticationRequest, res) => {
+    const batch = await prisma.batch.findUnique({
+      where: { id: req.params.batchId as string },
+      include: { items: true, project: true },
+    });
+
+    if (!batch || batch.project.user_id !== req.userId) {
+      res.status(404).json({ message: "Batch not found" });
+      return;
+    }
+
+    const counts = { total: batch.items.length, completed: 0, failed: 0, pending: 0 };
+    for (const item of batch.items) {
+      if (item.status === "COMPLETED") counts.completed++;
+      else if (item.status === "FAILURE") counts.failed++;
+      else counts.pending++;
+    }
+
+    res.status(200).json({
+      batch: {
+        id: batch.id,
+        project_id: batch.project_id,
+        base_prompt: batch.base_prompt,
+        variables: batch.variables,
+      },
+      items: batch.items,
+      counts,
+    });
+  },
+);

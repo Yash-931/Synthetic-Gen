@@ -61,6 +61,8 @@ async function uploadImage(imageBuffer: Buffer, destinationName: string) {
     resumable: false,
   });
 
+  await file.makePublic();
+
   console.log("Image uploaded to bucket successfully");
   const url = file.publicUrl();
   return url;

@@ -3,6 +3,7 @@ import z from "zod";
 import { prisma } from "../../../packages/db/db";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { authMiddleware, type AuthenticationRequest } from "../middleware/auth";
 
 export const userRouter = express.Router();
 
@@ -95,3 +96,21 @@ userRouter.post("/signin", async (req, res) => {
     token: token,
   });
 });
+
+userRouter.get(
+  "/me",
+  authMiddleware,
+  async (req: AuthenticationRequest, res) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { id: true, email: true, credits: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.status(200).json({ user });
+  },
+);

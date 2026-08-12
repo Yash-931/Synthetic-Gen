@@ -38,3 +38,36 @@ projectRouter.post(
     });
   },
 );
+
+projectRouter.get(
+  "/",
+  authMiddleware,
+  async (req: AuthenticationRequest, res) => {
+    const projects = await prisma.project.findMany({
+      where: { user_id: req.userId! },
+      include: { _count: { select: { batches: true } } },
+    });
+
+    res.status(200).json({ projects });
+  },
+);
+
+projectRouter.get(
+  "/:id",
+  authMiddleware,
+  async (req: AuthenticationRequest, res) => {
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.id as string, user_id: req.userId! },
+      include: {
+        batches: { include: { _count: { select: { items: true } } } },
+      },
+    });
+
+    if (!project) {
+      res.status(404).json({ message: "Project not found" });
+      return;
+    }
+
+    res.status(200).json({ project });
+  },
+);
