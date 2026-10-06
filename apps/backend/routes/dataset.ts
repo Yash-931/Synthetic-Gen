@@ -66,84 +66,97 @@ const generateInputSchema = z.object({
   project_id: z.string(),
 });
 
-datasetRouter.post("/generate", async (req, res) => {
-  const { success, data } = generateInputSchema.safeParse(req.body);
+datasetRouter.post(
+  "/generate",
+  authMiddleware,
+  async (req: AuthenticationRequest, res) => {
+    const { success, data } = generateInputSchema.safeParse(req.body);
 
-  if (!success) {
-    res.status(400).json({
-      message: "Input validation failed",
+    if (!success) {
+      res.status(400).json({
+        message: "Input validation failed",
+      });
+      return;
+    }
+    const { base_prompt, variables, project_id } = data;
+
+    const project = await prisma.project.findFirst({
+      where: { id: project_id, user_id: req.userId! },
     });
-    return;
-  }
-  const { base_prompt, variables, project_id } = data;
 
-  console.log(base_prompt);
-  console.log(variables);
+    if (!project) {
+      res.status(404).json({ message: "Project not found" });
+      return;
+    }
 
-  const prompt_vars = extractVariablesFromPrompt(base_prompt);
-  const provided_vars = Object.keys(variables);
+    console.log(base_prompt);
+    console.log(variables);
 
-  console.log(prompt_vars);
-  console.log(provided_vars);
+    const prompt_vars = extractVariablesFromPrompt(base_prompt);
+    const provided_vars = Object.keys(variables);
 
-  const missingKeys = prompt_vars.filter(
-    (key) => !provided_vars.includes(key!),
-  );
+    console.log(prompt_vars);
+    console.log(provided_vars);
 
-  if (missingKeys.length > 0) {
-    res.status(400).json({
-      message: "Some keys missing in the provided variables",
-      missingKeys: missingKeys,
+    const missingKeys = prompt_vars.filter(
+      (key) => !provided_vars.includes(key!),
+    );
+
+    if (missingKeys.length > 0) {
+      res.status(400).json({
+        message: "Some keys missing in the provided variables",
+        missingKeys: missingKeys,
+      });
+      return;
+    }
+
+    const allLabels = generatePermutations(variables);
+    const totalPermutations = allLabels.length;
+
+    if (totalPermutations > 500) {
+      res.status(400).json({
+        message: "Too many permutations. Max allowed is 500",
+      });
+      return;
+    }
+
+    const dbBatch = await prisma.batch.create({
+      data: {
+        variables: variables,
+        base_prompt: base_prompt,
+        project_id: project_id,
+      },
     });
-    return;
-  }
 
-  const allLabels = generatePermutations(variables);
-  const totalPermutations = allLabels.length;
+    const itemsToCreate = allLabels.map((labelObj) => ({
+      batch_id: dbBatch.id,
+      prompt: resolvePrompt(base_prompt, labelObj),
+      labels: labelObj,
+      status: "PENDING",
+    }));
 
-  if (totalPermutations > 500) {
-    res.status(400).json({
-      message: "Too many permutations. Max allowed is 500",
+    await prisma.items.createMany({
+      data: itemsToCreate,
     });
-    return;
-  }
 
-  const dbBatch = await prisma.batch.create({
-    data: {
-      variables: variables,
-      base_prompt: base_prompt,
-      project_id: project_id,
-    },
-  });
+    //count in the redis client
+    redisClient.set(`batch:${dbBatch.id}:progress`, 0);
 
-  const itemsToCreate = allLabels.map((labelObj) => ({
-    batch_id: dbBatch.id,
-    prompt: resolvePrompt(base_prompt, labelObj),
-    labels: labelObj,
-    status: "PENDING",
-  }));
+    //trigger the temporal workflow
+    const temporal_client = await get_temporal_client()
 
-  await prisma.items.createMany({
-    data: itemsToCreate,
-  });
+    await temporal_client.workflow.start(DatasetMasterWorkflow, {
+      args: [dbBatch.id],
+      workflowId: `${dbBatch.id}-MasterWorkflow`,
+      taskQueue: process.env.TEMPORAL_TASK_QUEUE!
+    })
 
-  //count in the redis client
-  redisClient.set(`batch:${dbBatch.id}:progress`, 0);
-
-  //trigger the temporal workflow
-  const temporal_client = await get_temporal_client()
-
-  await temporal_client.workflow.start(DatasetMasterWorkflow, {
-    args: [dbBatch.id],
-    workflowId: `${dbBatch.id}-MasterWorkflow`,
-    taskQueue: process.env.TEMPORAL_TASK_QUEUE!
-  })
-
-  return res.status(200).json({
-    messgae: success,
-    batchId: dbBatch.id
-  });
-});
+    return res.status(200).json({
+      messgae: success,
+      batchId: dbBatch.id
+    });
+  },
+);
 
 datasetRouter.get(
   "/:batchId",

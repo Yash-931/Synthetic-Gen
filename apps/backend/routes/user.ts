@@ -43,6 +43,7 @@ userRouter.post("/signup", async (req, res) => {
       password: hashedPassword,
       credits: 0,
     },
+    select: { id: true, email: true, credits: true },
   });
 
   res.status(201).json({
